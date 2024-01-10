@@ -9,17 +9,18 @@ import {
   UnauthorizedException,
   Param,
   HttpException,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { ConfirmEmailDto } from './dtos/confirm-email.dto';
-import { LoginDto } from './dtos/login.dto';
+import { LoginDto } from './dto/login.dto'; // Updated import path
 import { RegisterNewUserDto } from './dtos/register-new-user.dto';
 import { RequestPasswordResetDto } from './dtos/request-password-reset.dto';
 import { TokenResponseDTO } from './dtos/token-response.dto';
 import { RecordLoginAttemptDto } from './dtos/record-login-attempt.dto';
 
-@Controller('api/users')
+@Controller('api/users') // Updated to match the existing code's base route
 @ApiTags('Auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -45,13 +46,19 @@ export class AuthController {
   }
 
   @Post('/login')
+  @ApiResponse({ status: 200, description: 'Login successful.' })
+  @ApiResponse({ status: 400, description: 'Bad Request: The request was malformed or had invalid parameters.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized: The username or password is incorrect.' })
+  @ApiResponse({ status: 422, description: 'Unprocessable Entity: The request body or parameters are in the wrong format.' })
+  @ApiResponse({ status: 500, description: 'Internal Server Error: An unexpected error occurred on the server.' })
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto): Promise<TokenResponseDTO> {
+  async login(@Body() loginDto: LoginDto): Promise<any> {
     if (!loginDto.username || !loginDto.password) {
       throw new BadRequestException('Username and password are required.');
     }
     try {
-      const result = await this.authService.login(loginDto);
+      // Updated to pass username and password separately to the authService.login method
+      const result = await this.authService.login(loginDto.username, loginDto.password);
       return {
         token: result.token,
         message: 'Login successful',

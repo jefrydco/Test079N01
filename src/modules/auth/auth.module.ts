@@ -11,13 +11,11 @@ import { EmailVerification } from 'src/entities/email_verifications';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, EmailVerification]),
+    TypeOrmModule.forFeature([User, EmailVerification, UserRepository, LoginAttemptRepository]),
     JwtModule.register({}), // Assuming JwtModule is configured elsewhere
   ],
   providers: [
     AuthService,
-    UserRepository,
-    LoginAttemptRepository,
     EmailService,
   ],
   controllers: [AuthController],

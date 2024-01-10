@@ -7,15 +7,16 @@ import {
 } from '@nestjs/common';
 import { UserRepository } from 'src/repositories/users.repository';
 import { User } from 'src/entities/users';
-import { encryptPassword } from 'src/utils/transform'; // Keep this from existing code
+import { encryptPassword } from 'src/utils/transform';
 import { LoginAttemptRepository } from 'src/repositories/login-attempts.repository';
 import { EmailService } from 'src/shared/email/email.service';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { LoginAttempt } from 'src/entities/login_attempts';
-import { EmailVerificationRepository } from 'src/repositories/email-verifications.repository'; // Keep this from existing code
-import { MoreThan } from 'typeorm'; // Keep this from existing code
+import { EmailVerificationRepository } from 'src/repositories/email-verifications.repository';
+import { MoreThan } from 'typeorm';
+import { LoginDto } from './dto/login.dto'; // Added from new code
 
 export class RegisterUserDto {
   username: string;
@@ -62,7 +63,7 @@ export class AuthService {
       throw new ConflictException('Username or email already in use.');
     }
 
-    const passwordHash = await encryptPassword(password); // Use encryptPassword from existing code
+    const passwordHash = await encryptPassword(password);
     const emailConfirmationToken = crypto.randomBytes(16).toString('hex');
 
     const newUser = this.userRepository.create({
@@ -93,56 +94,34 @@ export class AuthService {
     };
   }
 
-  async confirmEmail(token: string): Promise<string> {
-    if (!token) {
-      throw new BadRequestException('Confirmation token is required.');
-    }
-
-    const user = await this.userRepository.findOne({ where: { emailConfirmationToken: token } });
-
-    if (!user) {
-      throw new NotFoundException('Invalid confirmation token.');
-    }
-
-    user.is_active = true;
-    user.updated_at = new Date();
-    user.emailConfirmationToken = null;
-
-    await this.userRepository.save(user);
-
-    await this.emailService.sendConfirmationEmail({ email: user.email, token });
-
-    return 'Email has been successfully confirmed.';
-  }
-
-  async login(username: string, password: string): Promise<{ access_token: string; message: string }> {
-    if (!username || !password) {
+  async login(loginDto: LoginDto): Promise<{ token: string; message: string }> {
+    if (!loginDto.username || !loginDto.password) {
       throw new BadRequestException('Username and password are required.');
     }
 
-    const user = await this.userRepository.findOne({ where: { username } });
+    const user = await this.userRepository.findOne({ where: { username: loginDto.username } });
 
     if (!user) {
-      await this.recordLoginAttempt(undefined, false, undefined, username);
+      await this.recordLoginAttempt(undefined, false, undefined, loginDto.username);
       throw new NotFoundException('Invalid credentials.');
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password_hash);
 
     if (!isPasswordValid) {
-      await this.recordLoginAttempt(user.id, false, undefined, username);
+      await this.recordLoginAttempt(user.id, false, undefined, loginDto.username);
       throw new UnauthorizedException('Invalid credentials.');
     }
 
     user.last_login = new Date();
     await this.userRepository.save(user);
 
-    await this.recordLoginAttempt(user.id, true, undefined, username);
+    await this.recordLoginAttempt(user.id, true, undefined, loginDto.username);
 
-    const access_token = this.jwtService.sign({ userId: user.id });
+    const token = this.jwtService.sign({ userId: user.id });
 
     return {
-      access_token,
+      token,
       message: 'Login successful.'
     };
   }
@@ -190,6 +169,28 @@ export class AuthService {
         }
       }
     }
+  }
+
+  async confirmEmail(token: string): Promise<string> {
+    if (!token) {
+      throw new BadRequestException('Confirmation token is required.');
+    }
+
+    const user = await this.userRepository.findOne({ where: { emailConfirmationToken: token } });
+
+    if (!user) {
+      throw new NotFoundException('Invalid confirmation token.');
+    }
+
+    user.is_active = true;
+    user.updated_at = new Date();
+    user.emailConfirmationToken = null;
+
+    await this.userRepository.save(user);
+
+    await this.emailService.sendConfirmationEmail({ email: user.email, token });
+
+    return 'Email has been successfully confirmed.';
   }
 
   // ... rest of the AuthService code ...
