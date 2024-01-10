@@ -1,4 +1,4 @@
- {
+import {
   BadRequestException,
   Injectable,
   NotFoundException,
@@ -9,6 +9,7 @@ import { UserRepository } from 'src/repositories/users.repository';
 import { User } from 'src/entities/users';
 import { encryptPassword } from 'src/utils/transform';
 import { LoginAttemptRepository } from 'src/repositories/login-attempts.repository';
+import { PasswordResetRepository } from 'src/repositories/password-reset.repository'; // Added from new code
 import { EmailService } from 'src/shared/email/email.service';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
@@ -17,10 +18,20 @@ import { LoginAttempt } from 'src/entities/login_attempts';
 import { EmailVerificationRepository } from 'src/repositories/email-verifications.repository';
 import { MoreThan } from 'typeorm';
 import { LoginDto } from './dto/login.dto'; // Added from new code
-
-// Additional DTO import
+import { RequestPasswordResetDto } from './dtos/request-password-reset.dto'; // Added from new code
 import { RegisterNewUserDto } from './dtos/register-new-user.dto'; // Added import for RegisterNewUserDto
 import { JwtPayload } from './interfaces/jwt-payload.interface'; // Assume JwtPayload interface exists
+
+export class RegisterUserDto {
+  username: string;
+  password: string;
+  email: string;
+}
+
+export class RegisterUserResponseDto {
+  success: boolean;
+  message: string;
+}
 
 @Injectable()
 export class AuthService {
@@ -30,6 +41,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
     private readonly emailVerificationRepository: EmailVerificationRepository,
+    private readonly passwordResetRepository: PasswordResetRepository, // Added from new code
   ) {}
 
   async registerNewUser(registerUserDto: RegisterUserDto): Promise<RegisterUserResponseDto> {
@@ -95,7 +107,7 @@ export class AuthService {
     const user = await this.userRepository.findOne({ where: { emailConfirmationToken: token } });
 
     if (!user) {
-      throw a NotFoundException('Invalid confirmation token.');
+      throw new NotFoundException('Invalid confirmation token.');
     }
 
     user.is_active = true;
@@ -136,6 +148,30 @@ export class AuthService {
     const payload: JwtPayload = { userId: user.id };
     const accessToken = this.jwtService.sign(payload);
     return { status: 200, message: 'Login successful.', access_token: accessToken };
+  }
+
+  async requestPasswordReset(requestPasswordResetDto: RequestPasswordResetDto): Promise<string> {
+    const { email } = requestPasswordResetDto;
+    const user = await this.userRepository.findOne({ where: { email } });
+
+    if (!user) {
+      throw new NotFoundException('Email does not exist.');
+    }
+
+    const resetToken = crypto.randomBytes(16).toString('hex');
+    const expirationTime = new Date();
+    expirationTime.setHours(expirationTime.getHours() + 1); // Set token expiration time to 1 hour
+
+    await this.passwordResetRepository.save({
+      token: resetToken,
+      expires_at: expirationTime,
+      used: false,
+      user_id: user.id,
+    });
+
+    await this.emailService.sendPasswordResetEmail(email, resetToken);
+
+    return 'Password reset link has been sent to your email.';
   }
 
   // ... rest of the AuthService code ...
