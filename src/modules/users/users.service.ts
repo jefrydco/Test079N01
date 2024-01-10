@@ -13,7 +13,7 @@ export class UserService {
   ) {}
 
   async editUser(editUserDto: EditUserDto): Promise<any> {
-    const { id, email } = editUserDto;
+    const { id, email, username } = editUserDto; // Add username to the destructured object
 
     if (!Number.isInteger(id)) {
       throw new BadRequestException('Invalid user ID format.');
@@ -21,7 +21,17 @@ export class UserService {
 
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
-      throw new NotFoundException('User not found.');
+      throw a new NotFoundException('User not found.');
+    }
+
+    // Check if the username is unique
+    const isUsernameUnique = await this.entityUniqueValidator.validate(username, {
+      constraints: [this.userRepository.target],
+      property: 'username',
+      object: { id },
+    });
+    if (!isUsernameUnique) {
+      throw new BadRequestException('The username is already taken.');
     }
 
     const isEmailUnique = await this.entityUniqueValidator.validate(email, {
@@ -34,7 +44,7 @@ export class UserService {
       throw new BadRequestException('The email is already registered.');
     }
 
-    await this.userRepository.update(id, { email });
+    await this.userRepository.update(id, { email, username }); // Update the user with both email and username
 
     const updatedUser = await this.userRepository.findOne({ where: { id } });
 

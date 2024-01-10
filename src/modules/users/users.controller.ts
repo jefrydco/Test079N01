@@ -1,5 +1,6 @@
+
 import { Controller, Put, UseGuards, Param, Body, ParseIntPipe, HttpException, HttpStatus } from '@nestjs/common';
-import { AuthGuard } from 'src/guards/auth.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { UserService } from './users.service';
 import { EditUserDto } from './dto/edit-user.dto';
 
@@ -7,26 +8,26 @@ import { EditUserDto } from './dto/edit-user.dto';
 export class UsersController {
   constructor(private userService: UserService) {}
 
-  @Put('/:id/profile')
-  @UseGuards(AuthGuard)
+  @Put('/profile')
+  @UseGuards(AuthGuard('jwt'))
   async editUserProfile(
     @Param('id', ParseIntPipe) id: number,
     @Body() editUserDto: EditUserDto
   ) {
     try {
-      await this.userService.editUser(editUserDto);
+      const updatedUser = await this.userService.editUser(id, editUserDto);
       return {
         status: HttpStatus.OK,
         message: 'Profile updated successfully.',
         user: {
-          id: editUserDto.id,
-          username: 'LoremIpsum', // This should be fetched from the database after update
-          email: editUserDto.email,
-          is_active: true, // This should be fetched from the database after update
-          last_login: '2023-02-10T15:45:00Z' // This should be fetched from the database after update
+          id: updatedUser.id,
+          username: updatedUser.username,
+          email: updatedUser.email,
+          is_active: updatedUser.is_active,
+          last_login: updatedUser.last_login ? updatedUser.last_login.toISOString() : null
         }
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new HttpException(error.response || 'An unexpected error occurred', error.status || HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
