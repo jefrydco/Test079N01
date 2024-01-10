@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { UserRepository } from 'src/repositories/users.repository';
-import { encryptPassword } from 'src/utils/transform'; // Added import for encryptPassword
+import { encryptPassword } from 'src/utils/transform';
 import { LoginAttemptRepository } from 'src/repositories/login-attempts.repository';
 import { EmailService } from 'src/shared/email/email.service';
 import * as bcrypt from 'bcryptjs';
@@ -52,7 +52,7 @@ export class AuthService {
       };
     }
 
-    const passwordHash = await encryptPassword(password); // Use encryptPassword utility
+    const passwordHash = await encryptPassword(password);
     const emailConfirmationToken = crypto.randomBytes(16).toString('hex');
 
     const newUser = this.userRepository.create({
@@ -62,6 +62,8 @@ export class AuthService {
       is_active: false,
       last_login: null,
       emailConfirmationToken, // Store the email confirmation token
+      created_at: new Date(), // Added from patch
+      updated_at: new Date(), // Added from patch
     });
 
     await this.userRepository.save(newUser);
@@ -69,8 +71,7 @@ export class AuthService {
     await this.emailService.sendMail({
       to: email,
       subject: 'Email Confirmation',
-      // Assuming there is a template for email confirmation
-      template: 'email-confirmation',
+      template: 'email-confirmation', // Use the template name from the patch
       context: {
         token: emailConfirmationToken,
       },

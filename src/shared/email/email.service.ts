@@ -4,7 +4,7 @@ import { InjectQueue } from '@nestjs/bull'
 import { Injectable, Logger } from '@nestjs/common'
 import { Queue } from 'bull'
 import { MAIL_QUEUE, SEND_MAIL_JOB } from './email.constants'
-import * as emailConfirmationTemplate from 'src/shared/email/templates/email-confirmation.hbs'
+import { join } from 'path'
 
 interface EmailConfirmationDTO {
   email: string;
@@ -21,7 +21,7 @@ export class EmailService {
     const options: ISendMailOptions = {
       to: dto.email,
       subject: 'Confirm your email',
-      template: emailConfirmationTemplate,
+      template: join(__dirname, 'templates', 'email-confirmation.hbs'),
       context: {
         token: dto.token,
         url: 'http://yourapp.com/confirm-email',
