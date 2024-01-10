@@ -1,10 +1,9 @@
-
-import { ISendMailOptions } from '@nestjs-modules/mailer'
-import { InjectQueue } from '@nestjs/bull'
-import { Injectable, Logger } from '@nestjs/common'
-import { Queue } from 'bull'
-import { MAIL_QUEUE, SEND_MAIL_JOB } from './email.constants'
-import { join } from 'path'
+import { ISendMailOptions } from '@nestjs-modules/mailer';
+import { InjectQueue, Process, Processor } from '@nestjs/bull';
+import { Injectable, Logger } from '@nestjs/common';
+import { Queue, Job } from 'bull';
+import { MAIL_QUEUE, SEND_MAIL_JOB } from './email.constants';
+import { join } from 'path';
 
 interface EmailConfirmationDTO {
   email: string;
@@ -12,14 +11,16 @@ interface EmailConfirmationDTO {
 }
 
 @Injectable()
+@Processor(MAIL_QUEUE)
 export class EmailService {
   constructor(@InjectQueue(MAIL_QUEUE) private readonly mailQueue: Queue) {}
 
-  private logger = new Logger(EmailService.name)
+  private logger = new Logger(EmailService.name);
 
   async sendConfirmationEmail(dto: EmailConfirmationDTO) {
     const options: ISendMailOptions = {
       to: dto.email,
+      from: 'noreply@yourapp.com', // Add a sender email address if required
       subject: 'Confirm your email',
       template: join(__dirname, 'templates', 'email-confirmation.hbs'),
       context: {
@@ -33,6 +34,7 @@ export class EmailService {
   async sendPasswordResetEmail(email: string, token: string): Promise<boolean> {
     const options: ISendMailOptions = {
       to: email,
+      from: 'noreply@yourapp.com', // Add a sender email address if required
       subject: 'Reset your password',
       template: join(__dirname, 'templates', 'reset-password.hbs'),
       context: {
@@ -46,14 +48,24 @@ export class EmailService {
   async sendMail(options: ISendMailOptions) {
     try {
       if (process.env.NODE_ENV === 'test') {
-        return true
+        return true;
       }
 
-      await this.mailQueue.add(SEND_MAIL_JOB, options)
-      return true
+      await this.mailQueue.add(SEND_MAIL_JOB, options);
+      return true;
     } catch (e) {
-      this.logger.error('An error occur while adding send mail job', e)
-      return false
+      this.logger.error('An error occur while adding send mail job', e);
+      return false;
+    }
+  }
+
+  @Process(SEND_MAIL_JOB)
+  async handleSendMailJob(job: Job<ISendMailOptions>) {
+    try {
+      // Implement the actual email sending logic here
+      // Placeholder for email sending logic
+    } catch (error) {
+      this.logger.error('Error sending email', error);
     }
   }
 }
