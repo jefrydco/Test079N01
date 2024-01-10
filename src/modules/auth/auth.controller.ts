@@ -8,11 +8,13 @@ import {
   NotFoundException,
   UnauthorizedException,
   Param,
+  HttpException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { ConfirmEmailDto } from './dtos/confirm-email.dto';
 import { LoginDto } from './dtos/login.dto';
+import { RegisterNewUserDto } from './dtos/register-new-user.dto';
 import { RequestPasswordResetDto } from './dtos/request-password-reset.dto';
 import { TokenResponseDTO } from './dtos/token-response.dto';
 import { RecordLoginAttemptDto } from './dtos/record-login-attempt.dto';
@@ -60,6 +62,19 @@ export class AuthController {
       }
       throw error;
     }
+  }
+
+  @Post('/register')
+  @HttpCode(HttpStatus.CREATED)
+  async register(@Body() registerNewUserDto: RegisterNewUserDto): Promise<{ status: number; message: string }> {
+    const result = await this.authService.registerNewUser(registerNewUserDto);
+    if (!result.success) {
+      throw new HttpException(result.message, HttpStatus.CONFLICT);
+    }
+    return {
+      status: HttpStatus.CREATED,
+      message: result.message,
+    };
   }
 
   @Post('/:user_id/login_attempts')
