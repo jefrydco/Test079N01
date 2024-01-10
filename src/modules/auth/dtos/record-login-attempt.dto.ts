@@ -1,15 +1,15 @@
 import { IsNotEmpty, IsBoolean, IsIP, IsInt } from 'class-validator';
 
 export class RecordLoginAttemptDto {
-  @IsInt()
-  @IsNotEmpty({ message: 'User ID is required.' }) // Use the new message for better user feedback
+  @IsInt({ message: 'Invalid user ID format.' }) // Updated message from new code
+  @IsNotEmpty({ message: 'User ID must not be empty' }) // Updated message from new code
   userId: number;
 
   @IsBoolean()
-  @IsNotEmpty({ message: 'Success status is required.' }) // Use the new message for better user feedback
+  @IsNotEmpty({ message: 'Success status must not be empty' }) // Updated message from new code
   success: boolean;
 
-  @IsIP()
-  @IsNotEmpty({ message: 'IP address is required.' }) // Use the new message for better user feedback
+  @IsIP({ message: 'IP address is required.' }) // Kept the existing message as it is more appropriate
+  @IsNotEmpty({ message: 'IP address must not be empty' }) // Updated message from new code
   ipAddress: string;
 }

@@ -1,8 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { UserRepository } from 'src/repositories/users.repository';
-import { EmailVerificationRepository } from 'src/repositories/email-verifications.repository';
-import { PasswordResetRepository } from 'src/repositories/password-resets.repository';
-import { encryptPassword } from 'src/utils/transform'; // Keep this if it's used elsewhere in the existing code
 import { LoginAttemptRepository } from 'src/repositories/login-attempts.repository';
 import { EmailService } from 'src/shared/email/email.service';
 import * as bcrypt from 'bcryptjs';
@@ -10,10 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { User } from 'src/entities/users';
 import { LoginAttempt } from 'src/entities/login_attempts';
-import { PasswordReset } from 'src/entities/password_resets';
 import { MoreThan } from 'typeorm';
-import { LoginDto } from './dto/login.dto'; // Added from new code
-import { RecordLoginAttemptDto } from './dtos/record-login-attempt.dto'; // Keep this if it's used elsewhere in the existing code
 
 export class RegisterUserDto {
   username: string;
@@ -30,8 +24,6 @@ export class RegisterUserResponseDto {
 export class AuthService {
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly emailVerificationRepository: EmailVerificationRepository, // Keep this if it's used elsewhere in the existing code
-    private readonly passwordResetRepository: PasswordResetRepository,
     private readonly loginAttemptRepository: LoginAttemptRepository,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
@@ -46,7 +38,7 @@ export class AuthService {
 
     const emailRegex = /\S+@\S+\.\S+/;
     if (!emailRegex.test(email)) {
-      throw a BadRequestException('Invalid email format.');
+      throw new BadRequestException('Invalid email format.');
     }
 
     const userExists = await this.userRepository.findOne({
@@ -60,7 +52,6 @@ export class AuthService {
       };
     }
 
-    // Use bcrypt directly if encryptPassword is not a custom function that does more than bcrypt
     const passwordHash = await bcrypt.hash(password, 10);
     const emailConfirmationToken = crypto.randomBytes(16).toString('hex');
 
@@ -70,9 +61,9 @@ export class AuthService {
       email,
       is_active: false,
       last_login: null,
-      emailConfirmationToken, // Keep this if it's used elsewhere in the existing code
-      created_at: new Date(), // Keep this if it's used elsewhere in the existing code
-      updated_at: new Date(), // Keep this if it's used elsewhere in the existing code
+      emailConfirmationToken,
+      created_at: new Date(),
+      updated_at: new Date(),
     });
 
     await this.userRepository.save(newUser);
@@ -92,24 +83,30 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto): Promise<{ access_token: string; message: string }> {
-    const { username, password } = loginDto;
-
+  async login(username: string, password: string): Promise<{ access_token: string; message: string }> {
     if (!username || !password) {
       throw new BadRequestException('Username and password are required.');
     }
 
     const user = await this.userRepository.findOne({ where: { username } });
 
-    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
-      await this.recordLoginAttempt({ userId: undefined, success: false, ipAddress: undefined, username }); // Use DTO if it's required by the existing code
+    if (!user) {
+      await this.recordLoginAttempt(undefined, false, undefined, username);
+      throw new NotFoundException('Invalid credentials.');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+
+    if (!isPasswordValid) {
+      await this.recordLoginAttempt(user.id, false, undefined, username);
       throw new UnauthorizedException('Invalid credentials.');
     }
 
     user.last_login = new Date();
     await this.userRepository.save(user);
 
-    await this.recordLoginAttempt({ userId: user.id, success: true, ipAddress: undefined, username }); // Use DTO if it's required by the existing code
+    await this.recordLoginAttempt(user.id, true, undefined, username);
+
     const access_token = this.jwtService.sign({ userId: user.id });
 
     return {
@@ -118,11 +115,9 @@ export class AuthService {
     };
   }
 
-  async recordLoginAttempt(recordLoginAttemptDto: RecordLoginAttemptDto): Promise<void> {
-    const { userId, success, ipAddress, username } = recordLoginAttemptDto;
-
+  async recordLoginAttempt(userId: number, success: boolean, ipAddress?: string, username?: string): Promise<void> {
     let user_id = userId;
-    if (!user_id || !ipAddress) {
+    if (!user_id) {
       if (!username) {
         throw new BadRequestException('User ID or username and IP address must not be empty.');
       }
@@ -131,13 +126,22 @@ export class AuthService {
         throw new NotFoundException('User does not exist.');
       }
       user_id = user.id;
+    } else {
+      const user = await this.userRepository.findOne({ where: { id: user_id } });
+      if (!user) {
+        throw new NotFoundException('User not found.');
+      }
+    }
+
+    if (!ipAddress) {
+      throw new BadRequestException('IP address is required.');
     }
 
     const loginAttempt = this.loginAttemptRepository.create({
       user_id: user_id,
       attempt_time: new Date(),
       success: success,
-      ip_address: ipAddress || '',
+      ip_address: ipAddress,
     });
 
     await this.loginAttemptRepository.save(loginAttempt);
