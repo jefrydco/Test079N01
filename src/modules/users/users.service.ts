@@ -1,8 +1,9 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { UserRepository } from 'src/repositories/users.repository';
+
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { UserRepository } from '../../repositories/users.repository';
 import { EditUserDto } from './dto/edit-user.dto';
-import * as bcrypt from 'bcryptjs';
-import { EntityUniqueValidator } from 'src/shared/validators/entity-unique.validator';
+import { User } from '../../entities/users';
+import { EntityUniqueValidator } from '../../shared/validators/entity-unique.validator';
 
 @Injectable()
 export class UserService {
@@ -11,15 +12,16 @@ export class UserService {
     private readonly entityUniqueValidator: EntityUniqueValidator,
   ) {}
 
-  async editUser(editUserDto: EditUserDto): Promise<string> {
-    const { id, email, password, password_confirmation } = editUserDto;
+  async editUser(editUserDto: EditUserDto): Promise<any> {
+    const { id, email } = editUserDto;
 
-    if (!email || !password || !password_confirmation) {
-      throw new BadRequestException('Email, password, and password confirmation are required.');
+    if (!Number.isInteger(id)) {
+      throw new BadRequestException('Invalid user ID format.');
     }
 
-    if (password !== password_confirmation) {
-      throw new BadRequestException('Passwords do not match.');
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
     }
 
     const isEmailUnique = await this.entityUniqueValidator.validate(email, {
@@ -32,9 +34,14 @@ export class UserService {
       throw new BadRequestException('The email is already registered.');
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
-    await this.userRepository.update(id, { email, password_hash: passwordHash });
+    await this.userRepository.update(id, { email });
 
-    return 'User profile has been updated successfully.';
+    const updatedUser = await this.userRepository.findOne({ where: { id } });
+
+    return {
+      status: 200,
+      message: 'Profile updated successfully.',
+      user: updatedUser,
+    };
   }
 }
