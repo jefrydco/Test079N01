@@ -10,19 +10,19 @@ import {
   Param,
   HttpException,
   UseGuards,
-  ConflictException, // Added from new code
+  ConflictException,
 } from '@nestjs/common';
 import { ApiTags, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { ConfirmEmailDto } from './dtos/confirm-email.dto';
-import { LoginDto } from './dto/login.dto'; // Updated import path from new code
+import { LoginDto } from './dto/login.dto';
 import { RegisterNewUserDto } from './dtos/register-new-user.dto';
 import { RequestPasswordResetDto } from './dtos/request-password-reset.dto';
-import { User } from 'src/entities/users'; // Added from new code
+import { User } from 'src/entities/users';
 import { TokenResponseDTO } from './dtos/token-response.dto';
 import { RecordLoginAttemptDto } from './dtos/record-login-attempt.dto';
 
-@Controller('api/users') // Updated to match the existing code's base route
+@Controller('api/users')
 @ApiTags('Auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -84,7 +84,7 @@ export class AuthController {
   }
 
   @Post('/register')
-  @HttpCode(HttpStatus.OK) // Changed from CREATED to OK based on the new code
+  @HttpCode(HttpStatus.CREATED) // Changed from OK to CREATED based on the new code
   async register(@Body() registerNewUserDto: RegisterNewUserDto): Promise<{ status: number; message: string; user?: User }> {
     try {
       const result = await this.authService.registerNewUser(registerNewUserDto);
@@ -92,7 +92,7 @@ export class AuthController {
         throw new HttpException(result.message, HttpStatus.CONFLICT);
       }
       return {
-        status: HttpStatus.OK, // Changed from CREATED to OK based on the new code
+        status: HttpStatus.CREATED, // Changed from OK to CREATED based on the new code
         message: result.message,
         user: result.user, // Kept from existing code to include user data in the response
       };
@@ -120,14 +120,18 @@ export class AuthController {
 
   @Post('/password-reset') // Renamed from '/password-reset-request' to '/password-reset' based on new code
   @HttpCode(HttpStatus.OK)
-  async requestPasswordReset(@Body() requestPasswordResetDto: RequestPasswordResetDto): Promise<{ message: string }> {
+  async requestPasswordReset(@Body() requestPasswordResetDto: RequestPasswordResetDto): Promise<{ status: number; message: string }> {
     try {
       const message = await this.authService.requestPasswordReset(requestPasswordResetDto.email);
       return {
-        message,
+        status: HttpStatus.OK,
+        message: message,
       };
     } catch (error) {
-      throw error;
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new Error('Internal Server Error');
     }
   }
 

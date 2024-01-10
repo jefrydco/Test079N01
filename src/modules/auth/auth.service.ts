@@ -2,25 +2,16 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
   ConflictException,
 } from '@nestjs/common';
 import { UserRepository } from 'src/repositories/users.repository';
-import { User } from 'src/entities/users';
 import { encryptPassword } from 'src/utils/transform';
-import { LoginAttemptRepository } from 'src/repositories/login-attempts.repository';
-import { PasswordResetRepository } from 'src/repositories/password-reset.repository';
 import { EmailService } from 'src/shared/email/email.service';
-import * as bcrypt from 'bcryptjs';
-import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
-import { LoginAttempt } from 'src/entities/login_attempts';
-import { EmailVerificationRepository } from 'src/repositories/email-verifications.repository';
-import { MoreThan } from 'typeorm';
-import { LoginDto } from './dto/login.dto';
-import { RequestPasswordResetDto } from './dtos/request-password-reset.dto';
+import { JwtService } from '@nestjs/jwt';
 import { RegisterNewUserDto } from './dtos/register-new-user.dto';
-import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { PasswordResetRepository } from 'src/repositories/password-reset.repository';
+import { PasswordReset } from 'src/entities/password_resets';
 
 export class RegisterUserResponseDto {
   success: boolean;
@@ -31,21 +22,18 @@ export class RegisterUserResponseDto {
 export class AuthService {
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly loginAttemptRepository: LoginAttemptRepository,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
-    private readonly emailVerificationRepository: EmailVerificationRepository,
-    private readonly passwordResetRepository: PasswordResetRepository, // Keep the PasswordResetRepository from existing code
+    private readonly passwordResetRepository: PasswordResetRepository,
   ) {}
 
   async registerNewUser(registerUserDto: RegisterNewUserDto): Promise<RegisterUserResponseDto> {
     const { username, password, email } = registerUserDto;
 
-    // Validate input parameters
     if (!username || !password || !email) {
       throw new BadRequestException('Username, password, and email are required.');
     }
-    if (password.length < 8) { // Keep the password length check from existing code
+    if (password.length < 8) {
       throw new BadRequestException('Password must be at least 8 characters long.');
     }
 
@@ -65,11 +53,11 @@ export class AuthService {
     const passwordHash = await encryptPassword(password);
     const emailConfirmationToken = crypto.randomBytes(16).toString('hex');
 
-    const newUser = this.userRepository.create({ // Use the create method from existing code
+    const newUser = this.userRepository.create({
       username,
       password_hash: passwordHash,
       email,
-      is_active: false, // Keep the is_active flag from existing code
+      is_active: false,
       last_login: null,
       emailConfirmationToken,
       created_at: new Date(),
@@ -78,7 +66,7 @@ export class AuthService {
 
     await this.userRepository.save(newUser);
 
-    await this.emailService.sendMail({ // Keep the sendMail method from existing code
+    await this.emailService.sendMail({
       to: email,
       subject: 'Email Confirmation',
       template: 'email-confirmation.hbs',
@@ -92,8 +80,6 @@ export class AuthService {
       message: 'User registered successfully. Please check your email to confirm your account.',
     };
   }
-
-  // ... rest of the AuthService code including login and recordLoginAttempt methods ...
 
   async confirmEmail(token: string): Promise<string> {
     if (!token) {
@@ -112,10 +98,33 @@ export class AuthService {
 
     await this.userRepository.save(user);
 
-    await this.emailService.sendConfirmationEmail({ email: user.email, token }); // Keep the sendConfirmationEmail method from existing code
+    await this.emailService.sendConfirmationEmail({ email: user.email, token });
 
     return 'Email has been successfully confirmed.';
   }
 
-  // ... rest of the AuthService code including login, requestPasswordReset, and verifyEmail methods ...
+  async requestPasswordReset(email: string): Promise<{ status: number; message: string }> {
+    const user = await this.userRepository.findOne({ where: { email } });
+
+    if (!user) {
+      throw new NotFoundException('Email does not exist.');
+    }
+
+    const token = crypto.randomBytes(16).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1);
+
+    const passwordReset = new PasswordReset();
+    passwordReset.token = token;
+    passwordReset.expires_at = expiresAt;
+    passwordReset.user = user;
+
+    await this.passwordResetRepository.save(passwordReset);
+
+    await this.emailService.sendPasswordResetEmail(user.email, token);
+
+    return { status: 200, message: 'Password reset link has been sent to your email.' };
+  }
+
+  // ... rest of the AuthService code ...
 }
