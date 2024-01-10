@@ -1,4 +1,4 @@
-import { registerDecorator, ValidationArguments, ValidationOptions } from 'class-validator';
+ { registerDecorator, ValidationArguments, ValidationOptions } from 'class-validator';
 
 export function IsEqualTo<T>(property: keyof T, validationOptions?: ValidationOptions) {
   return (object: any, propertyName: string) => {
@@ -10,13 +10,13 @@ export function IsEqualTo<T>(property: keyof T, validationOptions?: ValidationOp
       options: validationOptions,
       validator: {
         validate(value: any, args: ValidationArguments) {
-          const [relatedPropertyName] = args.constraints;
-          const relatedValue = (args.object as any)[relatedPropertyName];
+          const relatedPropertyName: keyof T = args.constraints[0];
+          const relatedValue = (args.object as T)[relatedPropertyName];
           return value === relatedValue;
         },
 
         defaultMessage(args: ValidationArguments) {
-          const [relatedPropertyName] = args.constraints;
+          const relatedPropertyName: keyof T = args.constraints[0];
           return `${propertyName} must match ${relatedPropertyName} exactly`;
         },
       },
