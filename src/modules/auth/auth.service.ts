@@ -1,6 +1,6 @@
-
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { UserRepository } from 'src/repositories/users.repository';
+import { encryptPassword } from 'src/utils/transform'; // Added import for encryptPassword
 import { LoginAttemptRepository } from 'src/repositories/login-attempts.repository';
 import { EmailService } from 'src/shared/email/email.service';
 import * as bcrypt from 'bcryptjs';
@@ -52,7 +52,7 @@ export class AuthService {
       };
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await encryptPassword(password); // Use encryptPassword utility
     const emailConfirmationToken = crypto.randomBytes(16).toString('hex');
 
     const newUser = this.userRepository.create({
@@ -61,6 +61,7 @@ export class AuthService {
       email,
       is_active: false,
       last_login: null,
+      emailConfirmationToken, // Store the email confirmation token
     });
 
     await this.userRepository.save(newUser);
@@ -118,19 +119,18 @@ export class AuthService {
       if (!username) {
         throw new BadRequestException('User ID or username and IP address must not be empty.');
       }
-      // If username is provided but not userId, we attempt to find the user by username
       const user = await this.userRepository.findOne({ where: { username } });
       if (!user) {
         throw new NotFoundException('User does not exist.');
       }
-      userId = user.id; // Set the userId for the login attempt
+      userId = user.id;
     }
 
     const loginAttempt = new LoginAttempt();
     loginAttempt.user_id = userId;
     loginAttempt.attempt_time = new Date();
     loginAttempt.success = success;
-    loginAttempt.ip_address = ipAddress || ''; // Use empty string if ipAddress is not provided
+    loginAttempt.ip_address = ipAddress || '';
     await this.loginAttemptRepository.save(loginAttempt);
 
     if (!success) {
@@ -160,8 +160,7 @@ export class AuthService {
 
     user.is_active = true;
     user.updated_at = new Date();
-    // Assuming we have a method to invalidate the token
-    user.emailConfirmationToken = null;
+    user.emailConfirmationToken = null; // Invalidate the token
 
     await this.userRepository.save(user);
 
