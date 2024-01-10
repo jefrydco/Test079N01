@@ -66,7 +66,7 @@ export class AuthController {
 
   @Post('/register')
   @HttpCode(HttpStatus.CREATED)
-  async register(@Body() registerNewUserDto: RegisterNewUserDto): Promise<{ status: number; message: string }> {
+  async register(@Body() registerNewUserDto: RegisterNewUserDto): Promise<{ status: number; message: string; user?: any }> {
     const result = await this.authService.registerNewUser(registerNewUserDto);
     if (!result.success) {
       throw new HttpException(result.message, HttpStatus.CONFLICT);
@@ -74,6 +74,7 @@ export class AuthController {
     return {
       status: HttpStatus.CREATED,
       message: result.message,
+      user: result.user, // Added from new code to include user data in the response
     };
   }
 

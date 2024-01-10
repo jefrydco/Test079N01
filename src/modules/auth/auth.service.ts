@@ -1,15 +1,21 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { UserRepository } from 'src/repositories/users.repository';
 import { User } from 'src/entities/users';
-import { encryptPassword } from 'src/utils/transform';
+import { encryptPassword } from 'src/utils/transform'; // Keep this from existing code
 import { LoginAttemptRepository } from 'src/repositories/login-attempts.repository';
 import { EmailService } from 'src/shared/email/email.service';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { LoginAttempt } from 'src/entities/login_attempts';
-import { EmailVerificationRepository } from 'src/repositories/email-verifications.repository';
-import { MoreThan } from 'typeorm';
+import { EmailVerificationRepository } from 'src/repositories/email-verifications.repository'; // Keep this from existing code
+import { MoreThan } from 'typeorm'; // Keep this from existing code
 
 export class RegisterUserDto {
   username: string;
@@ -29,7 +35,7 @@ export class AuthService {
     private readonly loginAttemptRepository: LoginAttemptRepository,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
-    private readonly emailVerificationRepository: EmailVerificationRepository,
+    private readonly emailVerificationRepository: EmailVerificationRepository, // Keep this from existing code
   ) {}
 
   async registerNewUser(registerUserDto: RegisterUserDto): Promise<RegisterUserResponseDto> {
@@ -56,7 +62,7 @@ export class AuthService {
       throw new ConflictException('Username or email already in use.');
     }
 
-    const passwordHash = await encryptPassword(password);
+    const passwordHash = await encryptPassword(password); // Use encryptPassword from existing code
     const emailConfirmationToken = crypto.randomBytes(16).toString('hex');
 
     const newUser = this.userRepository.create({
@@ -75,7 +81,7 @@ export class AuthService {
     await this.emailService.sendMail({
       to: email,
       subject: 'Email Confirmation',
-      template: 'email-confirmation.hbs',
+      template: 'email-confirmation.hbs', // Use template from existing code
       context: {
         token: emailConfirmationToken,
       },

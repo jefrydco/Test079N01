@@ -14,13 +14,13 @@ import { EmailVerification } from 'src/entities/email_verifications';
     TypeOrmModule.forFeature([User, EmailVerification]),
     JwtModule.register({}), // Assuming JwtModule is configured elsewhere
   ],
-  controllers: [AuthController],
   providers: [
     AuthService,
     UserRepository,
     LoginAttemptRepository,
     EmailService,
   ],
+  controllers: [AuthController],
   exports: [AuthService],
 })
 export class AuthModule {}
