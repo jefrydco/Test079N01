@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { UserRepository } from 'src/repositories/users.repository';
+import { EmailVerificationRepository } from 'src/repositories/email-verifications.repository'; // Added from patch
+import { encryptPassword } from 'src/utils/transform';
 import { LoginAttemptRepository } from 'src/repositories/login-attempts.repository';
 import { EmailService } from 'src/shared/email/email.service';
 import * as bcrypt from 'bcryptjs';
@@ -7,7 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { User } from 'src/entities/users';
 import { LoginAttempt } from 'src/entities/login_attempts';
-import { MoreThan } from 'typeorm';
+import { MoreThan } from 'typeorm'; // Added from existing code
 
 export class RegisterUserDto {
   username: string;
@@ -27,6 +29,7 @@ export class AuthService {
     private readonly loginAttemptRepository: LoginAttemptRepository,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
+    private readonly emailVerificationRepository: EmailVerificationRepository, // Added from patch
   ) {}
 
   async registerNewUser(registerUserDto: RegisterUserDto): Promise<RegisterUserResponseDto> {
@@ -52,7 +55,7 @@ export class AuthService {
       };
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 10); // Use bcrypt directly as in existing code
     const emailConfirmationToken = crypto.randomBytes(16).toString('hex');
 
     const newUser = this.userRepository.create({
@@ -61,7 +64,7 @@ export class AuthService {
       email,
       is_active: false,
       last_login: null,
-      emailConfirmationToken,
+      emailConfirmationToken, // Store the email confirmation token
       created_at: new Date(),
       updated_at: new Date(),
     });
@@ -80,6 +83,38 @@ export class AuthService {
     return {
       success: true,
       message: 'User registered successfully. Please check your email to confirm your account.',
+    };
+  }
+
+  async confirmEmail(email: string, confirmationCode: string): Promise<{ status: number; message: string }> {
+    if (!email || !confirmationCode) {
+      throw new BadRequestException('Email and confirmation code are required.');
+    }
+
+    const emailRegex = /\S+@\S+\.\S+/;
+    if (!emailRegex.test(email)) {
+      throw new BadRequestException('Invalid email format.');
+    }
+    
+    const emailVerification = await this.emailVerificationRepository.findOne({
+      where: { token: confirmationCode, verified: false },
+    });
+
+    if (!emailVerification || new Date() > emailVerification.expires_at) {
+      throw new NotFoundException('Invalid or expired confirmation code.');
+    }
+
+    const user = await this.userRepository.findOneBy({ id: emailVerification.user_id });
+    user.is_active = true;
+    await this.userRepository.save(user);
+
+    await this.emailVerificationRepository.remove(emailVerification);
+
+    await this.emailService.sendConfirmationEmail({ email: user.email, token: confirmationCode });
+
+    return {
+      status: 200,
+      message: 'Email confirmed successfully.'
     };
   }
 
@@ -107,7 +142,7 @@ export class AuthService {
 
     await this.recordLoginAttempt(user.id, true, undefined, username);
 
-    const access_token = this.jwtService.sign({ userId: user.id });
+    const access_token = this.jwtService.sign({ userId: user.id }); // Renamed token to access_token to match existing code
 
     return {
       access_token,

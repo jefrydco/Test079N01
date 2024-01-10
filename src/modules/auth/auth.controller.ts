@@ -1,7 +1,18 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, BadRequestException, UnauthorizedException, Param } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  BadRequestException,
+  NotFoundException,
+  UnauthorizedException,
+  Param,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto } from './dtos/login.dto'; // Assuming this is the correct path after resolving the conflict
+import { ConfirmEmailDto } from './dtos/confirm-email.dto';
+import { LoginDto } from './dtos/login.dto';
 import { RequestPasswordResetDto } from './dtos/request-password-reset.dto';
 import { TokenResponseDTO } from './dtos/token-response.dto';
 import { RecordLoginAttemptDto } from './dtos/record-login-attempt.dto';
@@ -10,6 +21,26 @@ import { RecordLoginAttemptDto } from './dtos/record-login-attempt.dto';
 @ApiTags('Auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Post('/confirm-email')
+  @HttpCode(HttpStatus.OK)
+  async confirmEmail(@Body() confirmEmailDto: ConfirmEmailDto): Promise<{ status: number; message: string }> {
+    try {
+      const result = await this.authService.confirmEmail(confirmEmailDto.token);
+      return {
+        status: HttpStatus.OK,
+        message: result,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw new BadRequestException(error.response);
+      } else if (error instanceof NotFoundException) {
+        throw new NotFoundException(error.response);
+      } else {
+        throw new Error('Internal Server Error');
+      }
+    }
+  }
 
   @Post('/login')
   @HttpCode(HttpStatus.OK)
@@ -24,7 +55,7 @@ export class AuthController {
         message: 'Login successful',
       };
     } catch (error) {
-      if (error.status === HttpStatus.UNAUTHORIZED) {
+      if (error instanceof UnauthorizedException || error.status === HttpStatus.UNAUTHORIZED) {
         throw new UnauthorizedException('Invalid credentials.');
       }
       throw error;
