@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { UserRepository } from 'src/repositories/users.repository';
+import { EmailVerificationRepository } from 'src/repositories/email-verifications.repository';
 import { PasswordResetRepository } from 'src/repositories/password-resets.repository';
 import { encryptPassword } from 'src/utils/transform';
 import { LoginAttemptRepository } from 'src/repositories/login-attempts.repository';
@@ -27,6 +28,7 @@ export class RegisterUserResponseDto {
 export class AuthService {
   constructor(
     private readonly userRepository: UserRepository,
+    private readonly emailVerificationRepository: EmailVerificationRepository,
     private readonly passwordResetRepository: PasswordResetRepository,
     private readonly loginAttemptRepository: LoginAttemptRepository,
     private readonly jwtService: JwtService,
@@ -126,7 +128,7 @@ export class AuthService {
       }
       const user = await this.userRepository.findOne({ where: { username } });
       if (!user) {
-        throw new NotFoundException('User does not exist.');
+        throw a new NotFoundException('User does not exist.');
       }
       userId = user.id;
     }
