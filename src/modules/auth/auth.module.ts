@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+ { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
@@ -8,15 +8,15 @@ import { LoginAttemptRepository } from 'src/repositories/login-attempts.reposito
 import { EmailService } from 'src/shared/email/email.service';
 import { User } from 'src/entities/users';
 import { EmailVerification } from 'src/entities/email_verifications';
+import { LoginAttempt } from 'src/entities/login_attempts';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, EmailVerification, UserRepository, LoginAttemptRepository]),
+    TypeOrmModule.forFeature([User, EmailVerification, UserRepository, LoginAttemptRepository, LoginAttempt]),
     JwtModule.register({}), // Assuming JwtModule is configured elsewhere
   ],
   providers: [
-    AuthService,
-    EmailService,
+    AuthService, EmailService,
   ],
   controllers: [AuthController],
   exports: [AuthService],

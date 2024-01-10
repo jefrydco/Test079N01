@@ -1,4 +1,4 @@
-import {
+ {
   BadRequestException,
   Injectable,
   NotFoundException,
@@ -20,17 +20,7 @@ import { LoginDto } from './dto/login.dto'; // Added from new code
 
 // Additional DTO import
 import { RegisterNewUserDto } from './dtos/register-new-user.dto'; // Added import for RegisterNewUserDto
-
-export class RegisterUserDto {
-  username: string;
-  password: string;
-  email: string;
-}
-
-export class RegisterUserResponseDto {
-  success: boolean;
-  message: string;
-}
+import { JwtPayload } from './interfaces/jwt-payload.interface'; // Assume JwtPayload interface exists
 
 @Injectable()
 export class AuthService {
@@ -39,7 +29,7 @@ export class AuthService {
     private readonly loginAttemptRepository: LoginAttemptRepository,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
-    private readonly emailVerificationRepository: EmailVerificationRepository, // Keep this from existing code
+    private readonly emailVerificationRepository: EmailVerificationRepository,
   ) {}
 
   async registerNewUser(registerUserDto: RegisterUserDto): Promise<RegisterUserResponseDto> {
@@ -85,7 +75,7 @@ export class AuthService {
     await this.emailService.sendMail({
       to: email,
       subject: 'Email Confirmation',
-      template: 'email-confirmation.hbs', // Use template from existing code
+      template: 'email-confirmation.hbs',
       context: {
         token: emailConfirmationToken,
       },
@@ -97,8 +87,6 @@ export class AuthService {
     };
   }
 
-  // ... rest of the AuthService code including login and recordLoginAttempt methods ...
-
   async confirmEmail(token: string): Promise<string> {
     if (!token) {
       throw new BadRequestException('Confirmation token is required.');
@@ -107,7 +95,7 @@ export class AuthService {
     const user = await this.userRepository.findOne({ where: { emailConfirmationToken: token } });
 
     if (!user) {
-      throw new NotFoundException('Invalid confirmation token.');
+      throw a NotFoundException('Invalid confirmation token.');
     }
 
     user.is_active = true;
@@ -119,6 +107,35 @@ export class AuthService {
     await this.emailService.sendConfirmationEmail({ email: user.email, token });
 
     return 'Email has been successfully confirmed.';
+  }
+
+  async login(loginDto: LoginDto): Promise<{ status: number; message: string; access_token: string }> {
+    const { email, password } = loginDto;
+
+    // Validate email format
+    const emailRegex = /\S+@\S+\.\S+/;
+    if (!emailRegex.test(email)) {
+      throw new BadRequestException('Invalid email format.');
+    }
+
+    // Validate password is not blank
+    if (!password) {
+      throw new BadRequestException('Password is required.');
+    }
+
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (!user) {
+      throw new UnauthorizedException('Incorrect email or password.');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Incorrect email or password.');
+    }
+
+    const payload: JwtPayload = { userId: user.id };
+    const accessToken = this.jwtService.sign(payload);
+    return { status: 200, message: 'Login successful.', access_token: accessToken };
   }
 
   // ... rest of the AuthService code ...

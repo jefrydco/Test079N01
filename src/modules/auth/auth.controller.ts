@@ -1,4 +1,4 @@
-import {
+ {
   Body,
   Controller,
   HttpCode,
@@ -52,16 +52,16 @@ export class AuthController {
   @ApiResponse({ status: 422, description: 'Unprocessable Entity: The request body or parameters are in the wrong format.' })
   @ApiResponse({ status: 500, description: 'Internal Server Error: An unexpected error occurred on the server.' })
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto): Promise<any> {
-    if (!loginDto.username || !loginDto.password) {
-      throw new BadRequestException('Username and password are required.');
+  async login(@Body() loginDto: LoginDto): Promise<TokenResponseDTO> {
+    if (!loginDto.email || !loginDto.password_hash) {
+      throw new BadRequestException('Email and password are required.');
     }
     try {
-      // Updated to pass username and password separately to the authService.login method
-      const result = await this.authService.login(loginDto.username, loginDto.password);
+      const result = await this.authService.login(loginDto.email, loginDto.password_hash);
       return {
-        token: result.token,
-        message: 'Login successful',
+        status: HttpStatus.OK,
+        message: 'Login successful.',
+        access_token: result.token,
       };
     } catch (error) {
       if (error instanceof UnauthorizedException || error.status === HttpStatus.UNAUTHORIZED) {
