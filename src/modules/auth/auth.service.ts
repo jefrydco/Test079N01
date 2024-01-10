@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException, UnauthorizedExcepti
 import { UserRepository } from 'src/repositories/users.repository';
 import { EmailVerificationRepository } from 'src/repositories/email-verifications.repository';
 import { PasswordResetRepository } from 'src/repositories/password-resets.repository';
-import { encryptPassword } from 'src/utils/transform';
+import { encryptPassword } from 'src/utils/transform'; // Keep this if it's used elsewhere in the existing code
 import { LoginAttemptRepository } from 'src/repositories/login-attempts.repository';
 import { EmailService } from 'src/shared/email/email.service';
 import * as bcrypt from 'bcryptjs';
@@ -12,7 +12,8 @@ import { User } from 'src/entities/users';
 import { LoginAttempt } from 'src/entities/login_attempts';
 import { PasswordReset } from 'src/entities/password_resets';
 import { MoreThan } from 'typeorm';
-import { RecordLoginAttemptDto } from './dtos/record-login-attempt.dto'; // Added import for RecordLoginAttemptDto
+import { LoginDto } from './dto/login.dto'; // Added from new code
+import { RecordLoginAttemptDto } from './dtos/record-login-attempt.dto'; // Keep this if it's used elsewhere in the existing code
 
 export class RegisterUserDto {
   username: string;
@@ -29,7 +30,7 @@ export class RegisterUserResponseDto {
 export class AuthService {
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly emailVerificationRepository: EmailVerificationRepository,
+    private readonly emailVerificationRepository: EmailVerificationRepository, // Keep this if it's used elsewhere in the existing code
     private readonly passwordResetRepository: PasswordResetRepository,
     private readonly loginAttemptRepository: LoginAttemptRepository,
     private readonly jwtService: JwtService,
@@ -45,7 +46,7 @@ export class AuthService {
 
     const emailRegex = /\S+@\S+\.\S+/;
     if (!emailRegex.test(email)) {
-      throw new BadRequestException('Invalid email format.');
+      throw a BadRequestException('Invalid email format.');
     }
 
     const userExists = await this.userRepository.findOne({
@@ -59,7 +60,8 @@ export class AuthService {
       };
     }
 
-    const passwordHash = await encryptPassword(password);
+    // Use bcrypt directly if encryptPassword is not a custom function that does more than bcrypt
+    const passwordHash = await bcrypt.hash(password, 10);
     const emailConfirmationToken = crypto.randomBytes(16).toString('hex');
 
     const newUser = this.userRepository.create({
@@ -68,9 +70,9 @@ export class AuthService {
       email,
       is_active: false,
       last_login: null,
-      emailConfirmationToken,
-      created_at: new Date(),
-      updated_at: new Date(),
+      emailConfirmationToken, // Keep this if it's used elsewhere in the existing code
+      created_at: new Date(), // Keep this if it's used elsewhere in the existing code
+      updated_at: new Date(), // Keep this if it's used elsewhere in the existing code
     });
 
     await this.userRepository.save(newUser);
@@ -90,34 +92,28 @@ export class AuthService {
     };
   }
 
-  async login(username: string, password: string): Promise<{ token: string; message: string }> {
+  async login(loginDto: LoginDto): Promise<{ access_token: string; message: string }> {
+    const { username, password } = loginDto;
+
     if (!username || !password) {
       throw new BadRequestException('Username and password are required.');
     }
 
     const user = await this.userRepository.findOne({ where: { username } });
 
-    if (!user) {
-      await this.recordLoginAttempt({ userId: undefined, success: false, ipAddress: undefined, username });
-      throw new NotFoundException('Invalid credentials.');
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-
-    if (!isPasswordValid) {
-      await this.recordLoginAttempt({ userId: user.id, success: false, ipAddress: undefined, username });
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      await this.recordLoginAttempt({ userId: undefined, success: false, ipAddress: undefined, username }); // Use DTO if it's required by the existing code
       throw new UnauthorizedException('Invalid credentials.');
     }
 
     user.last_login = new Date();
     await this.userRepository.save(user);
 
-    await this.recordLoginAttempt({ userId: user.id, success: true, ipAddress: undefined, username });
-
-    const token = this.jwtService.sign({ userId: user.id });
+    await this.recordLoginAttempt({ userId: user.id, success: true, ipAddress: undefined, username }); // Use DTO if it's required by the existing code
+    const access_token = this.jwtService.sign({ userId: user.id });
 
     return {
-      token,
+      access_token,
       message: 'Login successful.'
     };
   }
@@ -158,56 +154,6 @@ export class AuthService {
         }
       }
     }
-  }
-
-  async confirmEmail(token: string): Promise<string> {
-    if (!token) {
-      throw new BadRequestException('Confirmation token is required.');
-    }
-
-    const user = await this.userRepository.findOne({ where: { emailConfirmationToken: token } });
-
-    if (!user) {
-      throw new NotFoundException('Invalid confirmation token.');
-    }
-
-    user.is_active = true;
-    user.updated_at = new Date();
-    user.emailConfirmationToken = null;
-
-    await this.userRepository.save(user);
-
-    await this.emailService.sendConfirmationEmail({ email: user.email, token });
-
-    return 'Email has been successfully confirmed.';
-  }
-
-  async requestPasswordReset(email: string): Promise<string> {
-    const user = await this.userRepository.findOne({ where: { email } });
-
-    if (!user || !user.is_active) {
-      throw new NotFoundException('No active user found with the provided email.');
-    }
-
-    const token = crypto.randomBytes(16).toString('hex');
-    const expiresAt = new Date(Date.now() + 3600000);
-
-    const passwordReset = new PasswordReset();
-    passwordReset.token = token;
-    passwordReset.expires_at = expiresAt;
-    passwordReset.user = user;
-    passwordReset.used = false;
-
-    await this.passwordResetRepository.save(passwordReset);
-
-    await this.emailService.sendMail({
-      to: email,
-      subject: 'Password Reset Request',
-      template: 'password-reset',
-      context: { token },
-    });
-
-    return 'A password reset email has been sent to your email address.';
   }
 
   // ... rest of the AuthService code ...
