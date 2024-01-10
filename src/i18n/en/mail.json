@@ -1,0 +1,21 @@
+{
+  "reset_password": {
+    "change_my_password": "Change my password",
+    "header": "Hello {email}!",
+    "body": "Someone has requested a link to change your password. You can do this through the link below. ",
+    "link": "Link",
+    "footer": "If you didn't request this, please ignore this email. Your password won't change until you access the link above and create a new one."
+  },
+  "email_confirmation": {
+    "confirmation_instructions": "Confirmation instructions",
+    "welcome": "Welcome {email}!",
+    "body": "You can confirm your account email through the link below:",
+    "link": "Link"
+  },
+  "unlock_email": {
+    "unlock_email": "Unlock email instructions",
+    "header": "Dear {email}!",
+    "body": "You can unlock your account by the link below:",
+    "link": "Link"
+  }
+}

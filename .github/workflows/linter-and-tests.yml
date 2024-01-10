@@ -1,0 +1,35 @@
+name: Linter and Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  linter-tests:
+    runs-on: ubuntu-20.04
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_DB: example
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          registry-url: https://registry.npmjs.org
+          cache: 'yarn'
+          cache-dependency-path: yarn.lock
+      - name: Install packages
+        run: yarn
+      - name: Init db
+        run: yarn db:create && yarn db:run

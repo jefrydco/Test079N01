@@ -1,0 +1,48 @@
+version: 0.2
+env:
+  variables:
+    IMAGE_NAME: "base_source_development"
+  parameter-store:
+    docker_username: "/base_source_development/docker_username"
+    docker_password: "/base_source_development/docker_password"
+    subnet: "/base_source_development/subnet"
+    security_group: "/base_source_development/security_group"
+
+phases:
+  install:
+    runtime-versions:
+      docker: 18
+  pre_build:
+    commands:
+      - echo --- Logging in to Amazon ECR ---
+      - $(aws ecr get-login --no-include-email --region ${AWS_DEFAULT_REGION})
+      - echo --- Setting AWS environments ---
+      - echo --- Docker Login ---
+      - echo $docker_password | docker login --username $docker_username --password-stdin
+      - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+      - URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_NAME}
+  build:
+    commands:
+      - echo --- Building container ---
+      - docker build -f ./docker/development/Dockerfile -t $URI:latest .
+      - docker push $URI:latest
+      - printf '{"Version":"1.0","ImageURI":"%s"}' $URI:latest > imageDetail.json
+
+  post_build:
+    commands:
+      - docker push $URI:latest
+      - echo --- Migrating database ---
+      - echo --- Migrating database ECS task ---
+      - run_result=$(aws ecs run-task --cluster base_source_development --task-definition base_source_development_db_setup --count 1 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[${subnet}],securityGroups=[${security_group}], assignPublicIp=ENABLED}")
+      - container_arn=$(echo $run_result | jq '.tasks[0].taskArn' | sed -e 's/^"//' -e 's/"$//')
+      - aws ecs wait tasks-stopped --cluster base_source_development --tasks "${container_arn}"
+      - describe_result=$(aws ecs describe-tasks --cluster base_source_development --tasks "${container_arn}")
+      - terminated_status=$(echo $describe_result | jq '.tasks[0].containers[0].exitCode')
+      - echo $terminated_status
+      - exit $terminated_status
+  
+artifacts:
+  files:
+    - imageDetail.json
+    - ecs/development/taskdef.json
+    - ecs/development/appspec.yaml

@@ -1,0 +1,65 @@
+version: "3.7"
+services:
+  api:
+    build: .
+    ports:
+      - ${APP_PORT}:${APP_PORT}
+    command: yarn start:dev
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - db
+      - redis
+    networks:
+      - api-network
+    env_file:
+      - .env
+  db:
+    image: postgres:14.1-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    networks:
+      - api-network
+  redis:
+    image: redis:alpine
+    ports:
+      - 6379:6379
+    restart: always
+    command: redis-server
+    volumes:
+      - redis:/data
+    networks:
+      - api-network
+  maildev:
+    image: maildev/maildev:2.0.5
+    ports:
+      - 1080:1080
+      - 1025:1025
+    environment:
+      MAILDEV_WEB_USER: admin
+      MAILDEV_WEB_PASS: admin
+      MAILDEV_INCOMING_USER: maildev
+      MAILDEV_INCOMING_PASS: maildev
+      MAILDEV_WEB_PORT: 1080
+      MAILDEV_SMTP_PORT: 1025
+    volumes:
+      - mail-maildev-data:/var/lib/maildev
+    networks:
+      - api-network
+volumes:
+  postgres:
+    driver: local
+  redis:
+    driver: local
+  mail-maildev-data:
+    driver: local
+networks:
+  api-network:
+    driver: bridge

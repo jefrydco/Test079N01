@@ -1,0 +1,87 @@
+{
+    "family": "nestjs",
+    "networkMode": "awsvpc",
+    "taskRoleArn": "arn:aws:iam::<<PLACEHOLDER>>:role/ecs_tasks_base_source_development",
+    "executionRoleArn": "arn:aws:iam::<<PLACEHOLDER>>:role/ecs_tasks_base_source_development",
+    
+     "cpu": "512",
+     "memory": "1024",
+    
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "containerDefinitions": [
+        {
+            "name": "nestjs",
+            "image": "<IMAGE1_NAME>",
+            "essential": true,
+            "command": ["yarn", "start"],
+            "portMappings": [
+                {
+                    "protocol": "tcp",
+                    "containerPort": 3000,
+                    "hostPort": 3000
+                }
+            ],
+            "environment": [
+                { "name": "NODE_ENV", "value": "production" },
+                { "name": "APP_PORT", "value": "3000" },
+                { "name": "DATABASE_TYPE", "value" : "postgres" },
+                { "name": "DATABASE_NAME", "value" : "base_source_development" },
+                { "name": "DATABASE_USERNAME", "value": "base_source_development" },
+                { "name": "DATABASE_PORT", "value": "5432" },
+                { "name": "REDIS_PORT", "value": "6379" },
+                { "name": "APP_FRONTEND_URL", "value": "" },
+                { "name": "SES_SENDER_EMAIL", "value": "" },
+                { "name": "S3_REGION", "value": "ap-northeast-1" },
+                { "name": "S3_BUCKET", "value": "base_source_development-development-storage" }
+            ],
+            "secrets": [
+                  {
+                    "name": "DATABASE_HOST",
+                    "valueFrom": "arn:aws:ssm:ap-northeast-1:<<PLACEHOLDER>>:parameter/base_source_development/database_host"
+                  },
+                  {
+                    "name": "DATABASE_PASSWORD",
+                    "valueFrom": "arn:aws:ssm:ap-northeast-1:<<PLACEHOLDER>>:parameter/base_source_development/database_password"
+                  },
+                  {
+                    "name":  "REDIS_HOST",
+                    "valueFrom": "arn:aws:ssm:ap-northeast-1:<<PLACEHOLDER>>:parameter/base_source_development/redis_address"
+                  },
+                  {
+                    "name":  "ROLLBAR_ACCESS_TOKEN",
+                    "valueFrom": "arn:aws:ssm:ap-northeast-1:<<PLACEHOLDER>>:parameter/base_source_development/rollbar_token"
+                  },
+                  {
+                    "name":  "SES_SECRET_KEY",
+                    "valueFrom": "arn:aws:ssm:ap-northeast-1:<<PLACEHOLDER>>:parameter/base_source_development/ses_secret_key"
+                  },
+                  {
+                    "name":  "SES_API_KEY",
+                    "valueFrom": "arn:aws:ssm:ap-northeast-1:<<PLACEHOLDER>>:parameter/base_source_development/ses_api_key"
+                  },
+                  {
+                    "name":  "SES_REGION",
+                    "valueFrom": "arn:aws:ssm:ap-northeast-1:<<PLACEHOLDER>>:parameter/base_source_development/ses_region"
+                  },
+                  {
+                    "name":  "S3_SECRET_KEY",
+                    "valueFrom": "arn:aws:ssm:ap-northeast-1:<<PLACEHOLDER>>:parameter/base_source_development/s3_secret_key"
+                  },
+                  {
+                    "name":  "S3_API_KEY",
+                    "valueFrom": "arn:aws:ssm:ap-northeast-1:<<PLACEHOLDER>>:parameter/base_source_development/s3_api_key"
+                  }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "base_source_development_ecs_web",
+                    "awslogs-region": "ap-northeast-1",
+                    "awslogs-stream-prefix": "base_source_development_nestjs"
+                }
+            }
+        }
+    ]
+}

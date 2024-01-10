@@ -1,0 +1,6 @@
+{
+  "common.errors.unauthorized_error": "Unauthorized",
+  "common.errors.record_not_uniq_error": "Record not uniq",
+  "common.errors.token.inactive": "Your account is not activated yet",
+  "common.errors.token.locked": "Your account is locked"
+}
