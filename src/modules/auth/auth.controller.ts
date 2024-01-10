@@ -1,5 +1,6 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { RequestPasswordResetDto } from './dtos/request-password-reset.dto';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dtos/login.dto';
 import { TokenResponseDTO } from './dtos/token-response.dto';
@@ -19,3 +20,13 @@ export class AuthController {
     };
   }
 }
+
+
+  @Post('/password-reset')
+  @HttpCode(HttpStatus.OK)
+  async requestPasswordReset(@Body() requestPasswordResetDto: RequestPasswordResetDto): Promise<{ message: string }> {
+    const message = await this.authService.requestPasswordReset(requestPasswordResetDto.email);
+    return {
+      message,
+    };
+  }

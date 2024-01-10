@@ -30,6 +30,19 @@ export class EmailService {
     return this.sendMail(options);
   }
 
+  async sendPasswordResetEmail(email: string, token: string): Promise<boolean> {
+    const options: ISendMailOptions = {
+      to: email,
+      subject: 'Reset your password',
+      template: join(__dirname, 'templates', 'reset-password.hbs'),
+      context: {
+        token: token,
+        url: 'http://yourapp.com/reset-password',
+      },
+    };
+    return this.sendMail(options);
+  }
+
   async sendMail(options: ISendMailOptions) {
     try {
       if (process.env.NODE_ENV === 'test') {
