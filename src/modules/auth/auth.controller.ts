@@ -14,13 +14,13 @@ import {
 import { ApiTags, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { ConfirmEmailDto } from './dtos/confirm-email.dto';
-import { LoginDto } from './dto/login.dto'; // Import path is the same in both versions
+import { LoginDto } from './dto/login.dto';
 import { RegisterNewUserDto } from './dtos/register-new-user.dto';
 import { RequestPasswordResetDto } from './dtos/request-password-reset.dto';
 import { TokenResponseDTO } from './dtos/token-response.dto';
 import { RecordLoginAttemptDto } from './dtos/record-login-attempt.dto';
 
-@Controller('api/users') // The base route is the same in both versions
+@Controller('api/users')
 @ApiTags('Auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -45,6 +45,16 @@ export class AuthController {
     }
   }
 
+  @Post('/verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Body() confirmEmailDto: ConfirmEmailDto): Promise<{ status: number; message: string }> {
+    const result = await this.authService.verifyEmail(confirmEmailDto.token);
+    return {
+      status: HttpStatus.OK,
+      message: result.message,
+    };
+  }
+
   @Post('/login')
   @ApiResponse({ status: 200, description: 'Login successful.' })
   @ApiResponse({ status: 400, description: 'Bad Request: The request was malformed or had invalid parameters.' })
@@ -52,16 +62,16 @@ export class AuthController {
   @ApiResponse({ status: 422, description: 'Unprocessable Entity: The request body or parameters are in the wrong format.' })
   @ApiResponse({ status: 500, description: 'Internal Server Error: An unexpected error occurred on the server.' })
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto): Promise<TokenResponseDTO | any> { // Return type updated to include 'any' to accommodate both versions
+  async login(@Body() loginDto: LoginDto): Promise<TokenResponseDTO | any> {
     if (!loginDto.username || !loginDto.password) {
-      throw new BadRequestException('Username and password are required.'); // Updated to use 'username' and 'password' from new code
+      throw new BadRequestException('Username and password are required.');
     }
     try {
-      const result = await this.authService.login(loginDto.username, loginDto.password); // Updated to pass username and password separately
+      const result = await this.authService.login(loginDto.username, loginDto.password);
       return {
         status: HttpStatus.OK,
         message: 'Login successful.',
-        access_token: result.token, // Updated to include 'access_token' from existing code
+        access_token: result.token,
       };
     } catch (error) {
       if (error instanceof UnauthorizedException || error.status === HttpStatus.UNAUTHORIZED) {
@@ -81,7 +91,7 @@ export class AuthController {
     return {
       status: HttpStatus.CREATED,
       message: result.message,
-      user: result.user, // This line is the same in both versions
+      user: result.user,
     };
   }
 
@@ -92,11 +102,11 @@ export class AuthController {
       await this.authService.recordLoginAttempt(userId, recordLoginAttemptDto.success, recordLoginAttemptDto.ipAddress);
       return { status: HttpStatus.CREATED, message: 'Login attempt logged successfully.' };
     } catch (error) {
-      throw error; // Error handling is assumed to be implemented as needed, same in both versions
+      throw error;
     }
   }
 
-  @Post('/password-reset-request') // Endpoint updated from new code
+  @Post('/password-reset-request')
   @HttpCode(HttpStatus.OK)
   async requestPasswordReset(@Body() requestPasswordResetDto: RequestPasswordResetDto): Promise<{ message: string }> {
     try {

@@ -9,7 +9,7 @@ import { UserRepository } from 'src/repositories/users.repository';
 import { User } from 'src/entities/users';
 import { encryptPassword } from 'src/utils/transform';
 import { LoginAttemptRepository } from 'src/repositories/login-attempts.repository';
-import { PasswordResetRepository } from 'src/repositories/password-reset.repository'; // Added from new code
+import { PasswordResetRepository } from 'src/repositories/password-reset.repository';
 import { EmailService } from 'src/shared/email/email.service';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
@@ -17,21 +17,10 @@ import * as crypto from 'crypto';
 import { LoginAttempt } from 'src/entities/login_attempts';
 import { EmailVerificationRepository } from 'src/repositories/email-verifications.repository';
 import { MoreThan } from 'typeorm';
-import { LoginDto } from './dto/login.dto'; // Added from new code
-import { RequestPasswordResetDto } from './dtos/request-password-reset.dto'; // Added from new code
-import { RegisterNewUserDto } from './dtos/register-new-user.dto'; // Added import for RegisterNewUserDto
-import { JwtPayload } from './interfaces/jwt-payload.interface'; // Assume JwtPayload interface exists
-
-export class RegisterUserDto {
-  username: string;
-  password: string;
-  email: string;
-}
-
-export class RegisterUserResponseDto {
-  success: boolean;
-  message: string;
-}
+import { LoginDto } from './dto/login.dto';
+import { RequestPasswordResetDto } from './dtos/request-password-reset.dto';
+import { RegisterNewUserDto } from './dtos/register-new-user.dto';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Injectable()
 export class AuthService {
@@ -41,10 +30,10 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
     private readonly emailVerificationRepository: EmailVerificationRepository,
-    private readonly passwordResetRepository: PasswordResetRepository, // Added from new code
+    private readonly passwordResetRepository: PasswordResetRepository,
   ) {}
 
-  async registerNewUser(registerUserDto: RegisterUserDto): Promise<RegisterUserResponseDto> {
+  async registerNewUser(registerUserDto: RegisterNewUserDto): Promise<{ success: boolean; message: string; }> {
     const { username, password, email } = registerUserDto;
 
     // Validate input parameters
@@ -172,6 +161,33 @@ export class AuthService {
     await this.emailService.sendPasswordResetEmail(email, resetToken);
 
     return 'Password reset link has been sent to your email.';
+  }
+
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    if (!token) {
+      throw new BadRequestException('Verification token is required.');
+    }
+
+    const emailVerification = await this.emailVerificationRepository.findOne({
+      where: { token, verified: false, expires_at: MoreThan(new Date()) },
+    });
+
+    if (!emailVerification) {
+      throw a NotFoundException('Invalid or expired verification token.');
+    }
+
+    emailVerification.verified = true;
+    await this.emailVerificationRepository.save(emailVerification);
+
+    const user = await this.userRepository.findOne({ where: { id: emailVerification.user_id } });
+    if (!user) {
+      throw a NotFoundException('User not found.');
+    }
+
+    user.is_active = true;
+    await this.userRepository.save(user);
+
+    return { message: 'Email verified successfully.' };
   }
 
   // ... rest of the AuthService code ...
