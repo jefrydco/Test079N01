@@ -1,6 +1,5 @@
 import {
   registerDecorator,
-  Validator,
   ValidationArguments,
   ValidationOptions,
   ValidatorConstraint,
@@ -8,7 +7,7 @@ import {
 } from 'class-validator';
 import { Injectable } from '@nestjs/common';
 import { EntitySchema, Not, DataSource, ObjectType, FindOptionsWhere } from 'typeorm';
-import { User } from '../../entities/users.ts'; // Assuming the path to the User entity is correct
+import { User } from 'src/entities/users.ts'; // Assuming the path to the User entity is correct
 
 export interface UniqueValidationArguments<E> extends ValidationArguments {
   constraints: [EntitySchema<E> | ObjectType<E>];
@@ -22,9 +21,9 @@ export class EntityUniqueValidator implements ValidatorConstraintInterface {
   async validate<E>(value: any, args: UniqueValidationArguments<E>) {
     const [EntityClass] = args.constraints;
 
-    const entityRepo = await this.dataSource.getRepository(EntityClass);
+    const entityRepo = this.dataSource.getRepository(EntityClass);
 
-    const primaryKey = await entityRepo.metadata.primaryColumns[0].propertyName;
+    const primaryKey = entityRepo.metadata.primaryColumns[0].propertyName;
 
     const query = {
       [args.property]: value,
@@ -41,7 +40,7 @@ export class EntityUniqueValidator implements ValidatorConstraintInterface {
   defaultMessage<E>(args: UniqueValidationArguments<E>) {
     return `A ${this.dataSource.getRepository(args.constraints[0]).metadata.tableName} with this ${
       args.property
-    } already exists`;
+    } already exists.`;
   }
 }
 
