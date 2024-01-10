@@ -1,6 +1,7 @@
-import { IsNotEmpty, IsEmail, IsString } from 'class-validator';
+
+import { IsNotEmpty, IsEmail, IsString, MinLength } from 'class-validator';
 import { EntityUnique } from 'src/shared/validators/entity-unique.validator';
-import { IsPassword } from 'src/shared/validators/is-password.validator';
+// Removed IsPassword import as we will use MinLength for password validation
 import { User } from 'src/entities/users.ts';
 
 export class RegisterNewUserDto {
@@ -9,8 +10,8 @@ export class RegisterNewUserDto {
   @IsString({ message: 'Username must be a string' })
   username: string;
 
-  @IsPassword({ message: 'Password must be at least 8 characters long.' }) // Existing code uses a custom password validator
-  @IsNotEmpty({ message: 'Password is required' }) // New code adds a not empty check
+  @IsNotEmpty({ message: 'Password is required' })
+  @MinLength(8, { message: 'Password must be at least 8 characters long.' }) // Use MinLength for password validation
   @IsString({ message: 'Password must be a string' })
   password: string;
 
