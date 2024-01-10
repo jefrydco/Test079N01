@@ -1,5 +1,6 @@
 import {
   registerDecorator,
+  Validator,
   ValidationArguments,
   ValidationOptions,
   ValidatorConstraint,
@@ -7,6 +8,7 @@ import {
 } from 'class-validator';
 import { Injectable } from '@nestjs/common';
 import { EntitySchema, Not, DataSource, ObjectType, FindOptionsWhere } from 'typeorm';
+import { User } from '../../entities/users.ts'; // Assuming the path to the User entity is correct
 
 export interface UniqueValidationArguments<E> extends ValidationArguments {
   constraints: [EntitySchema<E> | ObjectType<E>];
