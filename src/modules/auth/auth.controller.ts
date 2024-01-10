@@ -1,8 +1,8 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { RequestPasswordResetDto } from './dtos/request-password-reset.dto';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dtos/login.dto';
+import { RequestPasswordResetDto } from './dtos/request-password-reset.dto';
 import { TokenResponseDTO } from './dtos/token-response.dto';
 
 @Controller()
@@ -17,10 +17,10 @@ export class AuthController {
     return {
       token: result.token,
       message: 'Login successful',
+      // Include any user-related data as needed, for example:
+      // user: result.user, // This line is commented out and can be included if the user object is needed in the response
     };
   }
-}
-
 
   @Post('/password-reset')
   @HttpCode(HttpStatus.OK)
@@ -30,3 +30,4 @@ export class AuthController {
       message,
     };
   }
+}

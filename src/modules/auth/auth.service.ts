@@ -12,6 +12,7 @@ import { User } from 'src/entities/users';
 import { LoginAttempt } from 'src/entities/login_attempts';
 import { PasswordReset } from 'src/entities/password_resets';
 import { MoreThan } from 'typeorm';
+import { RecordLoginAttemptDto } from './dtos/record-login-attempt.dto'; // Added import for RecordLoginAttemptDto
 
 export class RegisterUserDto {
   username: string;
@@ -97,21 +98,21 @@ export class AuthService {
     const user = await this.userRepository.findOne({ where: { username } });
 
     if (!user) {
-      await this.recordLoginAttempt(undefined, false, undefined, username);
+      await this.recordLoginAttempt({ userId: undefined, success: false, ipAddress: undefined, username });
       throw new NotFoundException('Invalid credentials.');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isPasswordValid) {
-      await this.recordLoginAttempt(user.id, false, undefined, username);
+      await this.recordLoginAttempt({ userId: user.id, success: false, ipAddress: undefined, username });
       throw new UnauthorizedException('Invalid credentials.');
     }
 
     user.last_login = new Date();
     await this.userRepository.save(user);
 
-    await this.recordLoginAttempt(user.id, true, undefined, username);
+    await this.recordLoginAttempt({ userId: user.id, success: true, ipAddress: undefined, username });
 
     const token = this.jwtService.sign({ userId: user.id });
 
@@ -121,31 +122,36 @@ export class AuthService {
     };
   }
 
-  async recordLoginAttempt(userId: number, success: boolean, ipAddress?: string, username?: string): Promise<void> {
-    if (!userId || !ipAddress) {
+  async recordLoginAttempt(recordLoginAttemptDto: RecordLoginAttemptDto): Promise<void> {
+    const { userId, success, ipAddress, username } = recordLoginAttemptDto;
+
+    let user_id = userId;
+    if (!user_id || !ipAddress) {
       if (!username) {
         throw new BadRequestException('User ID or username and IP address must not be empty.');
       }
       const user = await this.userRepository.findOne({ where: { username } });
       if (!user) {
-        throw a new NotFoundException('User does not exist.');
+        throw new NotFoundException('User does not exist.');
       }
-      userId = user.id;
+      user_id = user.id;
     }
 
-    const loginAttempt = new LoginAttempt();
-    loginAttempt.user_id = userId;
-    loginAttempt.attempt_time = new Date();
-    loginAttempt.success = success;
-    loginAttempt.ip_address = ipAddress || '';
+    const loginAttempt = this.loginAttemptRepository.create({
+      user_id: user_id,
+      attempt_time: new Date(),
+      success: success,
+      ip_address: ipAddress || '',
+    });
+
     await this.loginAttemptRepository.save(loginAttempt);
 
     if (!success) {
       const failedAttempts = await this.loginAttemptRepository.count({
-        where: { user_id: userId, success: false, attempt_time: MoreThan(new Date(Date.now() - 3600000)) },
+        where: { user_id: user_id, success: false, attempt_time: MoreThan(new Date(Date.now() - 3600000)) },
       });
       if (failedAttempts >= 5) {
-        const user = await this.userRepository.findOneBy({ id: userId });
+        const user = await this.userRepository.findOneBy({ id: user_id });
         if (user) {
           user.is_active = false;
           await this.userRepository.save(user);
